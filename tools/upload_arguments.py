@@ -13,9 +13,9 @@ print("""
 """)
 print("ITEN-网球机参数设定工具")
 print("请按照提示进行操作")
-server = input("服务器地址:(http://wolf.myseu.cn:5197/itenserv)")
+server = input("服务器地址:(https://wolf.myseu.cn/itenserv)")
 if server == '':
-    server = 'http://wolf.myseu.cn:5197/itenserv'
+    server = 'https://wolf.myseu.cn/itenserv'
 username = input("请输入管理员用户名:")
 password = getpass.getpass('请输入管理员用户密码:')
 print('正在检查权限是否合法...')
