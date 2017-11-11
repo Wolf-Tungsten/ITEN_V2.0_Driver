@@ -10,5 +10,5 @@ DEFAULT_SHOOT_DELAY = 5
 
 WEB_DEBUG = True
 
-SERVER =
+SERVER = "https://wolf.myseu.cn/itenserv"
 
