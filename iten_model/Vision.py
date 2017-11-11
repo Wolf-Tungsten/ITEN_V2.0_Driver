@@ -1,9 +1,12 @@
 import cv2
 import threading
 import iten_model.Config as Config
-from utils import log
+from utils import log, qiniu_sdk
 import datetime as dt
 import os
+import iten_model.Secret as Secret
+from qiniu import Auth
+
 
 class Vision(object):
     def __init__(self, camera):
@@ -49,27 +52,33 @@ class Vision(object):
             path = os.path.join(path, 'video_cache')
             dirname = user_id+str(dt.datetime.now().timestamp())
             path = os.path.join(path, dirname)
-            print(path)
             os.mkdir(path)
             filepath = os.path.join(path, 'video.avi')
             video_writer = cv2.VideoWriter(filepath, -1, 12, (Config.FRAME_WIDTH, Config.FRAME_HEIGHT))
-            print(Config.FRAME_WIDTH, Config.FRAME_HEIGHT)
             for i in range(length):
                 while not self.__next_frame:
                     pass
                 if self.__frame_rec.shape == (Config.FRAME_HEIGHT, Config.FRAME_WIDTH, 3):
                     video_writer.write(self.__frame_rec)
-                    print(self.__frame_rec.shape)
                 self.__next_frame = False
             video_writer.release()
             self.__recording = False
+            self.__convert_upload(filepath, user_id)
         if not self.__recording:
             threading.Thread(target=record_thread, args=(user_id, length, freq)).start()
 
-
-
-    def __convert_upload(self):
-        pass
+    def __convert_upload(self, filepath, user_id):
+        def __convert_upload_thread(filepath, user_id):
+            path, file = os.path.split(filepath)
+            output = os.path.join(path, 'output.mp4')
+            command = r"ffmpeg -y -i " + filepath \
+                        + r" -c:v libx264 -b:v 2600k -pass 1 -c:a aac -b:a 128k -f mp4 /dev/null && \ffmpeg -i "\
+                        + filepath + r' -c:v libx264 -b:v 2600k -pass 2 -c:a aac -b:a 128k '\
+                        + output
+            os.system(command)
+            os.remove(filepath)
+            qiniu_sdk.upload_video(output, user_id)
+        threading.Thread(target=__convert_upload_thread, args=(filepath,user_id)).start()
 
 
 

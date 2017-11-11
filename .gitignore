@@ -132,3 +132,12 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+Secret.py
+.idea/ITEN_V2.0_Driver.iml
+.idea/inspectionProfiles/
+.idea/misc.xml
+.idea/modules.xml
+.idea/workspace.xml
+iten_model/Secret.py
+test-clip/
+video_cache/
