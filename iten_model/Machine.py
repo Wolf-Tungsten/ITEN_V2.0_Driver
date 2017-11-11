@@ -105,6 +105,7 @@ class Machine(object):
                                 else:
                                     time.sleep(Config.DEFAULT_SHOOT_DELAY)
                             self.device.shoot(pose['machine'], pose['point'], pose['director'])
+                            self.vision.record(self.state['user_id'])
                             while self.state['state'] == 'pause':
                                 pass  # 遇到暂停
                             if self.state['state'] == 'free':
