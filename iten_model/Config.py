@@ -12,3 +12,10 @@ WEB_DEBUG = True
 
 SERVER = "https://wolf.myseu.cn/itenserv"
 
+# 串口通讯相关内容
+
+SERIAL_HEAD = 'AADD'
+SERIAL_TAIL = 'DDAA'
+BAUDRATE = 9600
+PORT_NAME = '/dev/ttyUSB0'
+

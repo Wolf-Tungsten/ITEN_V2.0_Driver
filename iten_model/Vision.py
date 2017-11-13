@@ -54,7 +54,8 @@ class Vision(object):
             path = os.path.join(path, dirname)
             os.mkdir(path)
             filepath = os.path.join(path, 'video.avi')
-            video_writer = cv2.VideoWriter(filepath, -1, 12, (Config.FRAME_WIDTH, Config.FRAME_HEIGHT))
+            fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+            video_writer = cv2.VideoWriter(filepath, fourcc, 12, (Config.FRAME_WIDTH, Config.FRAME_HEIGHT))
             for i in range(length):
                 while not self.__next_frame:
                     pass
