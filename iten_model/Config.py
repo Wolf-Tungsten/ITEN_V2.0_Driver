@@ -8,7 +8,7 @@ REC_FREQ = 15  # 录像帧率
 
 DEFAULT_SHOOT_DELAY = 5
 
-WEB_DEBUG = True
+WEB_DEBUG = False
 
 SERVER = "https://wolf.myseu.cn/itenserv"
 

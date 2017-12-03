@@ -44,41 +44,52 @@ class Machine(object):
         return res.json()
 
     def get_args(self):
-        res = self.get_request('/hardware/arguments', params={'machine_id': self.machine_id})
-        if res['has']:
-            args = res['arguments']
-            args = json.loads(args)
-            self.device.args = args
-            log.log('参数设置获取成功')
-        else:
-            print('未获取到参数，启动失败')
-            exit(-1)
+        while True:
+            try:
+                res = self.get_request('/hardware/arguments', params={'machine_id': self.machine_id})
+                if res['has']:
+                    args = res['arguments']
+                    args = json.loads(args)
+                    self.device.args = args
+                    log.log('参数设置获取成功')
+                else:
+                    print('未获取到参数，启动失败')
+                break
+            except:
+                continue
 
     # 服务器保活线程
     def active(self):
         log.log('网络通讯线程开始运行')
         while True:
-            time.sleep(5)
-            data = self.state
-            server_state = self.post_request('/hardware/active', data=data)
-            if self.state['state'] == 'free':
-                if server_state['state'] == 'deploying':
-                    self.state['state'] = 'working'
-                    self.state['train_id'] = server_state['train_id']
-                    self.get_train_data(server_state['train_id'])
-                    self.state['train_amount'] = int(server_state['train_amount'])
-                    self.state['train_count'] = 0
-                    self.state['user_id'] = server_state['user_id']
-                    log.log('用户：%s-部署任务'%server_state['user_id'])
-            elif self.state['state'] == 'working':
-                if server_state['state'] == 'pause' or 'free':
-                    self.state['state'] = server_state['state']
-            elif self.state['state'] == 'pause':
-                if server_state['state'] == 'working':
-                    self.state['state'] = 'working'
-                elif server_state['state'] == 'free':
-                    self.state['state'] = 'free'
-            log.log('向服务器更新状态')
+            try:
+                time.sleep(5)
+                data = self.state
+                server_state = self.post_request('/hardware/active', data=data)
+                if 'command' in server_state:
+                    if server_state['command'] != '':
+                        log.log('接到服务器动态命令：'+server_state['command'])
+                        self.handle_command(command=server_state['command'])
+                if self.state['state'] == 'free':
+                    if server_state['state'] == 'deploying':
+                        self.state['state'] = 'working'
+                        self.state['train_id'] = server_state['train_id']
+                        self.get_train_data(server_state['train_id'])
+                        self.state['train_amount'] = int(server_state['train_amount'])
+                        self.state['train_count'] = 0
+                        self.state['user_id'] = server_state['user_id']
+                        log.log('用户：%s-部署任务'%server_state['user_id'])
+                elif self.state['state'] == 'working':
+                    if server_state['state'] == 'pause' or 'free':
+                        self.state['state'] = server_state['state']
+                elif self.state['state'] == 'pause':
+                    if server_state['state'] == 'working':
+                        self.state['state'] = 'working'
+                    elif server_state['state'] == 'free':
+                        self.state['state'] = 'free'
+                log.log('向服务器更新状态')
+            except:
+                continue
 
     # 获取训练数据
     def get_train_data(self, train_id):
@@ -87,41 +98,51 @@ class Machine(object):
         self.state['train_name'] = res['train_name']
         log.log('训练模式被设置为：%s' % self.state['train_name'])
 
+    def handle_command(self, command):
+        if command == 'enable_cv':
+            self.config['enable_cv'] = True
+        if command == 'disable_cv':
+            self.config['enable_cv'] = False
+
     def run(self):
         log.log('执行线程开始')
         while True:
-            if self.state['state'] == 'working':
-                log.log('开始训练运行')
-                self.device.start()
-                if self.train_data['type'] == 'cycle':
-                    while self.state['train_amount'] >= self.state['train_count']:
-                        for pose in self.train_data['cycle']:
-                            if Config.WEB_DEBUG:
-                                time.sleep(Config.DEFAULT_SHOOT_DELAY)
-                            else:
-                                if self.config['enable_cv']:
-                                    while not Config.MIDDLE_RANGE_LEFT < self.vision.position < Config.MIDDEL_RANGE_RIGHT:
-                                        pass  # 如果视觉功能启用，则当没有在中间位置检测到人物时阻塞线程
-                                else:
+            try:
+                if self.state['state'] == 'working':
+                    log.log('开始训练运行')
+                    self.device.start()
+                    if self.train_data['type'] == 'cycle':
+                        while self.state['train_amount'] >= self.state['train_count']:
+                            for pose in self.train_data['cycle']:
+                                if Config.WEB_DEBUG:
                                     time.sleep(Config.DEFAULT_SHOOT_DELAY)
-                            self.device.shoot(pose['machine'], pose['point'], pose['director'])
-                            self.vision.record(self.state['user_id'])
-                            while self.state['state'] == 'pause':
-                                pass  # 遇到暂停
+                                else:
+                                    if self.config['enable_cv']:
+                                        while not Config.MIDDLE_RANGE_LEFT < self.vision.position[0] < Config.MIDDEL_RANGE_RIGHT:
+                                            pass  # 如果视觉功能启用，则当没有在中间位置检测到人物时阻塞线程
+                                        log.log('视觉检测到：'+str(self.vision.position[0]))
+                                    else:
+                                        time.sleep(Config.DEFAULT_SHOOT_DELAY)
+                                self.device.shoot(pose['machine'], pose['point'], pose['director'])
+                                self.vision.record(self.state['user_id'])
+                                while self.state['state'] == 'pause':
+                                    pass  # 遇到暂停
+                                if self.state['state'] == 'free':
+                                    break  # 遇到停止
+                            self.state['train_count'] = self.state['train_count'] + 1
                             if self.state['state'] == 'free':
                                 break  # 遇到停止
-                        self.state['train_count'] = self.state['train_count'] + 1
-                        if self.state['state'] == 'free':
-                            break  # 遇到停止
 
-                elif self.train_data['type'] == 'ai':
-                    pass
-                if self.state['train_count'] >= self.state['train_amount']:
-                    self.state['state'] = 'free'
-                self.device.stop()
-                log.log('训练结束')
-            else:
-                time.sleep(Config.DEFAULT_SHOOT_DELAY)
+                    elif self.train_data['type'] == 'ai':
+                        pass
+                    if self.state['train_count'] >= self.state['train_amount']:
+                        self.state['state'] = 'free'
+                    self.device.stop()
+                    log.log('训练结束')
+                else:
+                    time.sleep(Config.DEFAULT_SHOOT_DELAY)
+            except:
+                continue
 
 
 
